@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="robot_namespace" default="/"/>
+  <arg name="world_name" default="$(find simple_quad)/world/my_world.sdf"/>
+
+  <arg name="use_sim_time" default="true"/>
+  <arg name="model" default="$(find simple_quad)/src/description/simple_quad.urdf"/>
+  <arg name="rvizconfig" default="$(find simple_quad)/rviz/urdf_config.rviz"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_name)"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <param name="robot_description" command="$(find xacro)/xacro $(arg model)"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+  <!--<node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher"/>-->
+  <node name="spawn_simple_quad" pkg="gazebo_ros" type="spawn_model" args="-x 0.0 -y 0.0 -z 0.25 -Y 0.0 -unpause -urdf -param robot_description -model $(arg model) robot_namespace:=$(arg robot_namespace)"/>
+  <!--<node name="rviz" pkg="rviz" type="rviz" output="screen" args="-d $(arg rvizconfig)"/>-->
+</launch>

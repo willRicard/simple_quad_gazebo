@@ -1,13 +1,16 @@
 <?xml version="1.0"?>
-<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
-<package format="3">
+<?xml-model href="http://download.ros.org/schema/package_format2.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="2">
   <name>simple_quad</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="ricardo.azambuja@gmail.com">ros2user</maintainer>
   <license>TODO: License declaration</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend>
+  <author>Ricardo de Azambuja</author>
+  <author>Guillaume Ricard</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
   
   <depend>camera_info_manager</depend>
   <depend>cv_bridge</depend>
@@ -17,14 +20,15 @@
   <depend>sensor_msgs</depend>
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
+  <depend>tf2</depend>
   <depend>tf2_geometry_msgs</depend>
   <depend>tf2_ros</depend>
   <depend>trajectory_msgs</depend>
 
+  <build_depend>cmake_modules</build_depend>
   <build_depend>gazebo_dev</build_depend>
   <build_depend>gazebo_msgs</build_depend>
   <build_depend>gazebo_ros</build_depend>
-  <build_depend>rclcpp</build_depend>
 
   <exec_depend>joint_state_publisher</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
@@ -41,13 +45,4 @@
   <test_depend>ament_lint_common</test_depend>
   <test_depend>cv_bridge</test_depend>
 
-  <export>
-    <build_type>ament_cmake</build_type>
-    <!-- gazebo_ros_paths_plugin automatically adds these to
-        GAZEBO_PLUGIN_PATH and GAZEBO_MODEL_PATH when you do this export inside
-        the package.xml file. You can than use URIs of type model://my_package/stuff.
-        https://answers.ros.org/question/375249/gazebo-model-plugin-for-ros2/ -->
-    <!-- <gazebo_ros                                                                 
-        gazebo_model_path="${prefix}" />  -->
-  </export>
 </package>

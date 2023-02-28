@@ -1,0 +1,7 @@
+setup.py
+src/gazebo_ros/__init__.py
+src/gazebo_ros/gazebo_interface.py
+src/gazebo_ros.egg-info/PKG-INFO
+src/gazebo_ros.egg-info/SOURCES.txt
+src/gazebo_ros.egg-info/dependency_links.txt
+src/gazebo_ros.egg-info/top_level.txt

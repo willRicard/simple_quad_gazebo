@@ -37,7 +37,7 @@
  * \file  gazebo_ros_simple_quad.cpp
  *
  * \brief A new "hand-of-god" plugin with added odometry output.
- *  Odometry output (nav_msgs::msg::Odometry) was stolen from 
+ *  Odometry output (nav_msgs::Odometry) was stolen from
  *  gazebo_ros_diff_drive plugin.
  *
  */
@@ -48,12 +48,10 @@
 #include <gazebo/physics/Model.hh>
 #include <gazebo/physics/World.hh>
 #include <simple_quad/gazebo_ros_simple_quad.hpp>
-#include <gazebo_ros/conversions/builtin_interfaces.hpp>
-#include <gazebo_ros/conversions/geometry_msgs.hpp>
-#include <gazebo_ros/node.hpp>
-#include <geometry_msgs/msg/pose.hpp>
-#include <geometry_msgs/msg/twist.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <gazebo/transport/Node.hh>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Twist.h>
+#include <nav_msgs/Odometry.h>
 #include <sdf/sdf.hh>
 
 #ifdef NO_ERROR
@@ -83,20 +81,20 @@ public:
 
   /// Callback when a Pose command is received.
   /// \param[in] _msg Pose command message.
-  void OnCmdPos(const geometry_msgs::msg::Pose::SharedPtr _msg);
+  void OnCmdPos(const geometry_msgs::PosePtr _msg);
 
     /// Callback when a velocity command is received.
   /// \param[in] _msg Twist command message.
-  void OnCmdVel(geometry_msgs::msg::Twist::SharedPtr _msg);
+  void OnCmdVel(geometry_msgs::TwistPtr _msg);
 
   /// Subscriber to command poses
-  rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr cmd_pos_sub_;
+  ros::Subscriber cmd_pos_sub_;
 
   /// Subscriber to command velocities
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
+  ros::Subscriber cmd_vel_sub_;
 
   /// Odometry publisher
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_pub_;
+  ros::Publisher odometry_pub_;
 
   /// To broadcast TFs
   std::shared_ptr<tf2_ros::TransformBroadcaster> transform_broadcaster_;
@@ -117,7 +115,7 @@ public:
   void PublishOdometryMsg(const gazebo::common::Time & _current_time);
 
   /// A pointer to the GazeboROS node.
-  gazebo_ros::Node::SharedPtr ros_node_;
+  ros::NodeHandle ros_node_;
 
   /// Pointer to link.
   gazebo::physics::LinkPtr link_;
@@ -135,7 +133,7 @@ public:
   gazebo::common::Time last_main_update_time_;
 
   /// Keep encoder data.
-  geometry_msgs::msg::Pose recv_pose_;
+  geometry_msgs::Pose recv_pose_;
 
   /// Linear velocity in X received on command (m/s).
   tf2::Vector3 recv_linear_vel_{0.0,0.0,0.0};
@@ -153,7 +151,7 @@ public:
   std::string odometry_topic_;
 
   /// Keep latest odometry message
-  nav_msgs::msg::Odometry odom_;
+  nav_msgs::Odometry odom_;
 
   /// Robot base frame ID
   std::string robot_base_frame_;
@@ -204,15 +202,18 @@ void GazeboRosSimpleQuad::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr
 {
   impl_->model_ = _model;
   
-  // Initialize ROS node
-  impl_->ros_node_ = gazebo_ros::Node::Get(_sdf, _model);
-
-  // Get QoS profiles
-  const gazebo_ros::QoS & qos = impl_->ros_node_->get_qos();
-
   auto pose = impl_->model_->WorldPose();
-  impl_->recv_pose_.position = gazebo_ros::Convert<geometry_msgs::msg::Point>(pose.Pos());
-  impl_->recv_pose_.orientation = gazebo_ros::Convert<geometry_msgs::msg::Quaternion>(pose.Rot());
+  auto pos = pose.Pos();
+
+  impl_->recv_pose_.position.x = pos.X();
+  impl_->recv_pose_.position.y = pos.Y();
+  impl_->recv_pose_.position.z = pos.Z();
+
+  auto qt = pose.Rot();
+  impl_->recv_pose_.orientation.x = qt.X();
+  impl_->recv_pose_.orientation.y = qt.Y();
+  impl_->recv_pose_.orientation.z = qt.Z();
+  impl_->recv_pose_.orientation.w = qt.W();
 
   // Update rate
   auto update_rate = _sdf->Get<double>("update_rate", 100.0).first;
@@ -220,7 +221,7 @@ void GazeboRosSimpleQuad::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr
     impl_->update_period_ = 1.0 / update_rate;
   } else {
     impl_->update_period_ = 0.0;
-    RCLCPP_WARN(impl_->ros_node_->get_logger(), "Update period set to ZERO!");
+    ROS_WARN("Update period set to ZERO!");
   }
   impl_->last_update_time_ = _model->GetWorld()->SimTime();
 
@@ -234,14 +235,11 @@ void GazeboRosSimpleQuad::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr
     auto link_name = _sdf->Get<std::string>("link_name");
     impl_->link_ = _model->GetLink(link_name);
     if (!impl_->link_) {
-      RCLCPP_ERROR(
-        impl_->ros_node_->get_logger(), "Link [%s] not found. Aborting", link_name.c_str());
-      impl_->ros_node_.reset();
+      ROS_ERROR("Link [%s] not found. Aborting", link_name.c_str());
       return;
     }
   } else {
-    RCLCPP_ERROR(impl_->ros_node_->get_logger(), "Please specify <link_name>. Aborting");
-    impl_->ros_node_.reset();
+    ROS_ERROR("Please specify <link_name>. Aborting");
     return;
   }
 
@@ -252,27 +250,21 @@ void GazeboRosSimpleQuad::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr
   impl_->ca_ = 2.0 * sqrt(impl_->ka_ * impl_->link_->GetInertial()->IXX());
 
   // Subscribe to pose
-  impl_->cmd_pos_sub_ = impl_->ros_node_->create_subscription<geometry_msgs::msg::Pose>(
-    _sdf->Get<std::string>("cmd_pos_topic", "/cmd_pos").first, 
-    qos.get_subscription_qos(_sdf->Get<std::string>("cmd_pos_topic", "/cmd_pos").first, rclcpp::QoS(1)),
-    std::bind(&GazeboRosSimpleQuadPrivate::OnCmdPos, impl_.get(), std::placeholders::_1));
+  impl_->cmd_pos_sub_ = impl_->ros_node_.subscribe("cmd_pos", 1000,
+    &GazeboRosSimpleQuadPrivate::OnCmdPos, impl_.get());
   
-  RCLCPP_INFO(
-    impl_->ros_node_->get_logger(), "Subscribed to [%s]",
-    impl_->cmd_pos_sub_->get_topic_name());
+  //ROS_INFO("Subscribed to [%s]", impl_->cmd_pos_sub_.get_topic_name());
+  ROS_INFO("Subscribed to [cmd_pos]");
 
   // Subscribe to twist
-  impl_->cmd_vel_sub_ = impl_->ros_node_->create_subscription<geometry_msgs::msg::Twist>(
-    _sdf->Get<std::string>("cmd_vel_topic", "/cmd_vel").first, 
-    qos.get_subscription_qos(_sdf->Get<std::string>("cmd_vel_topic", "/cmd_vel").first, rclcpp::QoS(1)),
-    std::bind(&GazeboRosSimpleQuadPrivate::OnCmdVel, impl_.get(), std::placeholders::_1));
+  impl_->cmd_vel_sub_ = impl_->ros_node_.subscribe("cmd_vel", 1000,
+    &GazeboRosSimpleQuadPrivate::OnCmdVel, impl_.get());
 
-  RCLCPP_INFO(
-    impl_->ros_node_->get_logger(), "Subscribed to [%s]", 
-    impl_->cmd_vel_sub_->get_topic_name());
+  //ROS_INFO("Subscribed to [%s]", impl_->cmd_vel_sub_.get_topic_name());
+  ROS_INFO("Subscribed to [cmd_vel]");
 
   // To publish TFs ourselves
-  impl_->transform_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(impl_->ros_node_);
+  impl_->transform_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>();
 
   // Odometry
   impl_->odometry_frame_ = _sdf->Get<std::string>("odometry_frame", "odom").first;
@@ -282,20 +274,15 @@ void GazeboRosSimpleQuad::Load(gazebo::physics::ModelPtr _model, sdf::ElementPtr
   // Advertise odometry topic
   impl_->publish_odom_ = _sdf->Get<bool>("publish_odom", true).first;
   if (impl_->publish_odom_) {
-    impl_->odometry_pub_ = impl_->ros_node_->create_publisher<nav_msgs::msg::Odometry>(
-      impl_->odometry_topic_, qos.get_publisher_qos(impl_->odometry_topic_, rclcpp::QoS(1)));
+    impl_->odometry_pub_ = impl_->ros_node_.advertise<nav_msgs::Odometry>(impl_->odometry_topic_, 1000);
 
-    RCLCPP_INFO(
-      impl_->ros_node_->get_logger(), "Advertise odometry on [%s]",
-      impl_->odometry_pub_->get_topic_name());
+    ROS_INFO("Advertise odometry on [%s]", impl_->odometry_topic_.c_str());
   }
 
   // Create TF broadcaster if needed
   impl_->publish_odom_tf_ = _sdf->Get<bool>("publish_odom_tf", false).first;
   if (impl_->publish_odom_tf_) {
-    RCLCPP_INFO(
-      impl_->ros_node_->get_logger(),
-      "Publishing odom transforms between [%s] and [%s]", impl_->odometry_frame_.c_str(),
+    ROS_INFO("Publishing odom transforms between [%s] and [%s]", impl_->odometry_frame_.c_str(),
       impl_->robot_base_frame_.c_str());
   }
 
@@ -427,7 +414,11 @@ void GazeboRosSimpleQuadPrivate::OnUpdate(const gazebo::common::UpdateInfo & _in
     q_new.normalize();
     tf2::convert(q_new, recv_pose_.orientation); // recv_pose_.orientation = tf2::toMsg(q_new);
   
-    hog_desired = gazebo_ros::Convert<ignition::math::Pose3d>(recv_pose_);
+    hog_desired = ignition::math::Pose3d(
+        recv_pose_.position.x, recv_pose_.position.y, recv_pose_.position.z,
+        recv_pose_.orientation.w, recv_pose_.orientation.x, recv_pose_.orientation.y, recv_pose_.orientation.z
+    );
+    hog_desired.SetZ(5.0);
   }
 
   /// Track recv_pose_
@@ -491,7 +482,7 @@ void GazeboRosSimpleQuadPrivate::OnUpdate(const gazebo::common::UpdateInfo & _in
   last_update_time_ = _info.simTime;
 }
 
-void GazeboRosSimpleQuadPrivate::OnCmdPos(const geometry_msgs::msg::Pose::SharedPtr _msg)
+void GazeboRosSimpleQuadPrivate::OnCmdPos(const geometry_msgs::PosePtr _msg)
 {
   std::lock_guard<std::mutex> pose_lock(lock_);
   recv_pose_.position = _msg->position;
@@ -499,7 +490,7 @@ void GazeboRosSimpleQuadPrivate::OnCmdPos(const geometry_msgs::msg::Pose::Shared
   follow_recv_pose_ = true;
 }
 
-void GazeboRosSimpleQuadPrivate::OnCmdVel(const geometry_msgs::msg::Twist::SharedPtr _msg)
+void GazeboRosSimpleQuadPrivate::OnCmdVel(const geometry_msgs::TwistPtr _msg)
 {
   std::lock_guard<std::mutex> scoped_lock(lock_);
   recv_linear_vel_.setX(_msg->linear.x);
@@ -512,8 +503,16 @@ void GazeboRosSimpleQuadPrivate::OnCmdVel(const geometry_msgs::msg::Twist::Share
 void GazeboRosSimpleQuadPrivate::UpdateOdometryWorld()
 {
   auto pose = model_->WorldPose();
-  odom_.pose.pose.position = gazebo_ros::Convert<geometry_msgs::msg::Point>(pose.Pos());
-  odom_.pose.pose.orientation = gazebo_ros::Convert<geometry_msgs::msg::Quaternion>(pose.Rot());
+  auto pos = pose.Pos();
+  odom_.pose.pose.position.x = pos.X();
+  odom_.pose.pose.position.y = pos.Y();
+  odom_.pose.pose.position.y = pos.Z();
+
+  auto qt = pose.Rot();
+  odom_.pose.pose.orientation.x = qt.X();
+  odom_.pose.pose.orientation.y = qt.Y();
+  odom_.pose.pose.orientation.z = qt.Z();
+  odom_.pose.pose.orientation.w = qt.W();
 
   odom_.pose.pose.position.x += ignition::math::Rand::DblNormal(bias_[0], covariance_[0]);
   odom_.pose.pose.position.y += ignition::math::Rand::DblNormal(bias_[1], covariance_[1]);
@@ -530,14 +529,18 @@ void GazeboRosSimpleQuadPrivate::UpdateOdometryWorld()
 
   // Get velocity in odom frame
   auto linear = model_->RelativeLinearVel();
-  odom_.twist.twist.linear = gazebo_ros::Convert<geometry_msgs::msg::Vector3>(linear);
+  odom_.twist.twist.linear.x = linear.X();
+  odom_.twist.twist.linear.y = linear.Y();
+  odom_.twist.twist.linear.z = linear.Z();
   odom_.twist.twist.linear.x += ignition::math::Rand::DblNormal(bias_[6], covariance_[6]);
   odom_.twist.twist.linear.y += ignition::math::Rand::DblNormal(bias_[7], covariance_[7]);
   odom_.twist.twist.linear.z += ignition::math::Rand::DblNormal(bias_[8], covariance_[8]);
 
   
   auto angular = model_->RelativeAngularVel();
-  odom_.twist.twist.angular = gazebo_ros::Convert<geometry_msgs::msg::Vector3>(angular);
+  odom_.twist.twist.angular.x = angular.X();
+  odom_.twist.twist.angular.y = angular.Y();
+  odom_.twist.twist.angular.z = angular.Z();
   odom_.twist.twist.angular.x += ignition::math::Rand::DblNormal(bias_[9], covariance_[9]);
   odom_.twist.twist.angular.y += ignition::math::Rand::DblNormal(bias_[10], covariance_[10]);
   odom_.twist.twist.angular.z += ignition::math::Rand::DblNormal(bias_[11], covariance_[11]);
@@ -545,11 +548,15 @@ void GazeboRosSimpleQuadPrivate::UpdateOdometryWorld()
 
 void GazeboRosSimpleQuadPrivate::PublishOdometryTf(const gazebo::common::Time & _current_time)
 {
-  geometry_msgs::msg::TransformStamped msg;
-  msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(_current_time);
+  geometry_msgs::TransformStamped msg;
+  msg.header.stamp = ros::Time::now();
   msg.header.frame_id = odometry_frame_;
   msg.child_frame_id = robot_base_frame_;
-  msg.transform.translation = gazebo_ros::Convert<geometry_msgs::msg::Vector3>(odom_.pose.pose.position);
+
+  msg.transform.translation.x = odom_.pose.pose.position.x;
+  msg.transform.translation.y = odom_.pose.pose.position.y;
+  msg.transform.translation.z = odom_.pose.pose.position.z;
+
   msg.transform.rotation = odom_.pose.pose.orientation;
 
   transform_broadcaster_->sendTransform(msg);
@@ -557,8 +564,8 @@ void GazeboRosSimpleQuadPrivate::PublishOdometryTf(const gazebo::common::Time & 
 
 void GazeboRosSimpleQuadPrivate::PublishFootprintTf(const gazebo::common::Time & _current_time)
 {
-  geometry_msgs::msg::TransformStamped msg;
-  msg.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(_current_time);
+  geometry_msgs::TransformStamped msg;
+  msg.header.stamp = ros::Time::now();
   msg.header.frame_id = robot_base_frame_;
   msg.child_frame_id = "base_footprint";
   // msg.transform.translation.z = -(gazebo_ros::Convert<geometry_msgs::msg::Vector3>(odom_.pose.pose.position)).z;
@@ -571,10 +578,10 @@ void GazeboRosSimpleQuadPrivate::PublishOdometryMsg(const gazebo::common::Time &
   // Set header
   odom_.header.frame_id = odometry_frame_;
   odom_.child_frame_id = robot_base_frame_;
-  odom_.header.stamp = gazebo_ros::Convert<builtin_interfaces::msg::Time>(_current_time);
+  odom_.header.stamp = ros::Time::now();
 
   // Publish
-  odometry_pub_->publish(odom_);
+  odometry_pub_.publish(odom_);
 }
 
 GZ_REGISTER_MODEL_PLUGIN(GazeboRosSimpleQuad)

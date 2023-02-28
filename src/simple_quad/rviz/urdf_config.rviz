@@ -1,5 +1,5 @@
 Panels:
-  - Class: rviz_common/Displays
+  - Class: rviz/Displays
     Help Height: 0
     Name: Displays
     Property Tree Widget:
@@ -17,16 +17,12 @@ Panels:
         - /Image2/Topic1
       Splitter Ratio: 0.5
     Tree Height: 155
-  - Class: slam_toolbox::SlamToolboxPlugin
-    Name: SlamToolboxPlugin
-  - Class: nav2_rviz_plugins/Navigation 2
-    Name: Navigation 2
 Visualization Manager:
   Class: ""
   Displays:
     - Alpha: 0.5
       Cell Size: 1
-      Class: rviz_default_plugins/Grid
+      Class: rviz/Grid
       Color: 160; 160; 164
       Enabled: true
       Line Style:
@@ -43,7 +39,7 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: true
     - Alpha: 0.6000000238418579
-      Class: rviz_default_plugins/RobotModel
+      Class: rviz/RobotModel
       Collision Enabled: false
       Description File: ""
       Description Source: Topic
@@ -129,7 +125,7 @@ Visualization Manager:
       Update Interval: 0
       Value: true
       Visual Enabled: true
-    - Class: rviz_default_plugins/TF
+    - Class: rviz/TF
       Enabled: true
       Frame Timeout: 15
       Frames:
@@ -207,7 +203,7 @@ Visualization Manager:
         Value: true
       Axis: Z
       Channel Name: intensity
-      Class: rviz_default_plugins/LaserScan
+      Class: rviz/LaserScan
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
@@ -241,7 +237,7 @@ Visualization Manager:
         Value: true
       Axis: Z
       Channel Name: intensity
-      Class: rviz_default_plugins/PointCloud2
+      Class: rviz/PointCloud2
       Color: 255; 255; 255
       Color Transformer: RGB8
       Decay Time: 0
@@ -267,7 +263,7 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
-    - Class: rviz_default_plugins/Image
+    - Class: rviz/Image
       Enabled: false
       Max Value: 1
       Median window: 5
@@ -282,7 +278,7 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /simple_quad/depth_camera/image_raw
       Value: false
-    - Class: rviz_default_plugins/Image
+    - Class: rviz/Image
       Enabled: false
       Max Value: 1
       Median window: 5
@@ -298,7 +294,7 @@ Visualization Manager:
         Value: /simple_quad/depth_camera/depth/image_raw
       Value: false
     - Alpha: 0.699999988079071
-      Class: rviz_default_plugins/Map
+      Class: rviz/Map
       Color Scheme: map
       Draw Behind: false
       Enabled: true
@@ -320,7 +316,7 @@ Visualization Manager:
       Value: true
     - Alpha: 1
       Buffer Length: 1
-      Class: rviz_default_plugins/Path
+      Class: rviz/Path
       Color: 25; 255; 0
       Enabled: true
       Head Diameter: 0.30000001192092896
@@ -353,21 +349,21 @@ Visualization Manager:
     Frame Rate: 30
   Name: root
   Tools:
-    - Class: rviz_default_plugins/Interact
+    - Class: rviz/Interact
       Hide Inactive Objects: true
-    - Class: rviz_default_plugins/MoveCamera
-    - Class: rviz_default_plugins/Select
-    - Class: rviz_default_plugins/FocusCamera
-    - Class: rviz_default_plugins/Measure
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
       Line color: 128; 128; 0
-    - Class: nav2_rviz_plugins/GoalTool
+    - Class: rviz/SetGoal
   Transformation:
     Current:
-      Class: rviz_default_plugins/TF
+      Class: rviz/TF
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
+      Class: rviz/Orbit
       Distance: 19.311687469482422
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
@@ -399,8 +395,6 @@ Window Geometry:
   Navigation 2:
     collapsed: false
   QMainWindow State: 000000ff00000000fd000000010000000000000264000003a2fc020000000afb000000100044006900730070006c006100790073010000003b000000d6000000c700fffffffb0000000a0049006d006100670065000000010c000000280000002800fffffffb0000000a0049006d0061006700650000000136000000280000002800fffffffb0000000a0049006d006100670065010000026f0000009d0000000000000000fb0000000a0049006d00610067006501000002e7000000f60000000000000000fb0000000a0049006d0061006700650100000312000000cb0000000000000000fb0000000a0049006d006100670065010000026f0000009d0000000000000000fb0000000a0049006d0061006700650100000312000000cb0000000000000000fb000000220053006c0061006d0054006f006f006c0062006f00780050006c007500670069006e0100000117000001870000016d00fffffffb00000018004e0061007600690067006100740069006f006e0020003201000002a4000001390000011200ffffff00000516000003a200000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
-  SlamToolboxPlugin:
-    collapsed: false
   Width: 1920
   X: 0
   Y: 27
